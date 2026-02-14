@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>DINET - LOYAL FRIENDS 2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+:root{
+  --panel-bg: rgba(0,0,0,0.75);
+  --btn: #00d084;
+  --btn-hover: #00b873;
+  --text: #ffffff;
+}
+
+*{ box-sizing:border-box; }
+
+html,body{
+  height:100%;
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#0b0f14;
+}
+
+/* ===== ESCENARIO ===== */
+.stage{
+  height:100vh;
+  width:100vw;
+
+  background-image:
+    linear-gradient(
+      to top,
+      rgba(0,0,0,0.65) 0%,
+      rgba(0,0,0,0.20) 50%,
+      rgba(0,0,0,0.00) 100%
+    ),
+    url("BASE/1.jpg");
+
+  background-size: auto, contain;
+  background-repeat: no-repeat;
+  background-position: center center;
+
+  display:flex;
+  justify-content:center;
+  align-items:flex-end;
+  padding:30px;
+}
+
+/* ===== BOTÓN REGISTRO ===== */
+.start-btn{
+  padding:14px 40px;
+  font-size:18px;
+  font-weight:800;
+  border:none;
+  border-radius:18px;
+  background:var(--btn);
+  cursor:pointer;
+  transition:.25s ease;
+  box-shadow:0 8px 20px rgba(0,0,0,0.4);
+}
+
+.start-btn:hover{
+  background:var(--btn-hover);
+  transform:translateY(-2px);
+}
+
+/* ===== OVERLAY ===== */
+.overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.55);
+  backdrop-filter:blur(4px);
+  opacity:0;
+  pointer-events:none;
+  transition:.3s ease;
+}
+
+.overlay.active{
+  opacity:1;
+  pointer-events:auto;
+}
+
+/* ===== PANEL MODAL ===== */
+.panel{
+  position:fixed;
+  bottom:-100%;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(640px,92vw);
+  background:var(--panel-bg);
+  border-radius:24px 24px 0 0;
+  padding:26px;
+  color:var(--text);
+  transition:.4s ease;
+  box-shadow:0 -10px 40px rgba(0,0,0,0.4);
+}
+
+.panel.active{
+  bottom:0;
+}
+
+/* GRID */
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+}
+
+h2{
+  text-align:center;
+  font-size:18px;
+  margin:0 0 12px 0;
+  font-weight:800;
+}
+
+/* INPUTS */
+input{
+  width:100%;
+  padding:10px 12px;
+  margin-bottom:10px;
+  border-radius:10px;
+  border:none;
+  font-size:14px;
+}
+
+input:focus{
+  outline:none;
+  box-shadow:0 0 0 3px rgba(0,208,132,0.3);
+}
+
+/* ACTIONS */
+.actions{
+  margin-top:12px;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+}
+
+button{
+  padding:10px 20px;
+  border:none;
+  border-radius:12px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.save{
+  background:var(--btn);
+}
+
+.close{
+  background:#444;
+  color:#fff;
+}
+
+.msg{
+  margin-top:10px;
+  font-size:14px;
+  min-height:20px;
+}
+
+@media(max-width:520px){
+  .grid{ grid-template-columns:1fr; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="stage">
+  <button class="start-btn" id="openForm">REGISTRO</button>
+</div>
+
+<div class="overlay" id="overlay"></div>
+
+<div class="panel" id="panel">
+
+  <div class="grid">
+    <div>
+      <h2>GRUPO A</h2>
+      <div id="groupA"></div>
+    </div>
+
+    <div>
+      <h2>GRUPO B</h2>
+      <div id="groupB"></div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="close" id="closeForm">CERRAR</button>
+    <button class="save" id="saveBtn">CONTINUAR</button>
+  </div>
+
+  <div class="msg" id="msg"></div>
+
+</div>
+
+<script>
+
+/* CREAR INPUTS */
+function createInputs(container){
+  for(let i=1;i<=5;i++){
+    const input=document.createElement("input");
+    input.placeholder="Nombre "+i;
+    input.autocomplete="off";
+    container.appendChild(input);
+  }
+}
+
+createInputs(document.getElementById("groupA"));
+createInputs(document.getElementById("groupB"));
+
+/* ABRIR / CERRAR */
+const panel=document.getElementById("panel");
+const overlay=document.getElementById("overlay");
+
+document.getElementById("openForm").onclick=()=>{
+  panel.classList.add("active");
+  overlay.classList.add("active");
+};
+
+document.getElementById("closeForm").onclick=()=>{
+  panel.classList.remove("active");
+  overlay.classList.remove("active");
+};
+
+overlay.onclick=()=>{
+  panel.classList.remove("active");
+  overlay.classList.remove("active");
+};
+
+/* LEER */
+function read(container){
+  return [...container.querySelectorAll("input")]
+    .map(i=>i.value.trim())
+    .filter(v=>v!=="");
+}
+
+function setMsg(text){
+  document.getElementById("msg").textContent=text;
+}
+
+/* CONTINUAR */
+document.getElementById("saveBtn").onclick=()=>{
+  const data={
+    groupA:read(document.getElementById("groupA")),
+    groupB:read(document.getElementById("groupB"))
+  };
+
+  const total=data.groupA.length + data.groupB.length;
+
+  if(total===0){
+    setMsg("Ingresa al menos un participante.");
+    return;
+  }
+
+  console.log("Equipos:",data);
+  setMsg("Equipos registrados. Próxima fase...");
+  
+  // Aquí luego conectamos backend o pasamos a viñeta 2
+};
+
+</script>
+
+</body>
+</html>
