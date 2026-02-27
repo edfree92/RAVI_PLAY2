@@ -434,11 +434,17 @@
       return btn;
     }
 
-    function renderInitial() {
-      stage.appendChild(createButton("REGISTRO",  "action", openRegisterModal));
-      stage.appendChild(createButton("SIGUIENTE", "next",   () => renderScene(2)));
-    }
+function renderInitial(){
 
+  stage.appendChild(
+    createButton("REGISTRO","action",openRegisterModal)
+  );
+
+  stage.appendChild(
+    createButton("SIGUIENTE","next",()=>renderScene(2))
+  );
+
+}
     function renderNarrative() {
       stage.appendChild(createButton("ATRÁS",     "back", () => renderScene(gameState.currentScene - 1)));
       stage.appendChild(createButton("SIGUIENTE", "next", () => renderScene(gameState.currentScene + 1)));
@@ -503,3 +509,4 @@
 
 </body>
 </html>
+
