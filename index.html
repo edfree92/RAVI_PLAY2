@@ -39,7 +39,7 @@
       align-items: flex-end;
       padding: 40px;
       gap: 20px;
-      transition: opacity 0.6s ease;   /* fade suave */
+      transition: opacity 0.6s ease;
     }
 
     .stage.fade-out { opacity: 0; }
@@ -67,6 +67,56 @@
     .action { background: var(--btn-action); }
     .final  { background: var(--btn-final);  }
 
+    /* ---- Mapa de aventuras ---- */
+    #mapScene {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #0b0f14;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    #mapScene.active { display: flex; }
+
+    .map-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    .map-wrapper img {
+      max-height: 85vh;
+      max-width: 90vw;
+      display: block;
+      border-radius: 16px;
+    }
+
+    .map-hotspot {
+      position: absolute;
+      cursor: pointer;
+      border-radius: 12px;
+      border: 3px solid transparent;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .map-hotspot:hover {
+      border-color: #ff9800;
+      transform: scale(1.05);
+    }
+
+    /* Posiciones de los 4 hotspots — ajustar según imagen 1.5.jpg */
+    .map-hotspot.racks     { top: 15%; left: 10%;  width: 22%; height: 30%; }
+    .map-hotspot.sensible  { top: 15%; right: 10%; width: 22%; height: 30%; }
+    .map-hotspot.minirack  { bottom: 20%; left: 10%;  width: 22%; height: 25%; }
+    .map-hotspot.ecommerce { bottom: 20%; right: 10%; width: 22%; height: 25%; }
+
+    .map-footer {
+      margin-top: 20px;
+      display: flex;
+      gap: 16px;
+    }
+
     /* ---- Base modal (overlay) ---- */
     .modal-overlay {
       display: none;
@@ -76,6 +126,7 @@
       backdrop-filter: blur(5px);
       justify-content: center;
       align-items: center;
+      z-index: 100;
     }
 
     /* ---- Caja interior de modal ---- */
@@ -125,13 +176,12 @@
 
     /* ---- Ranking ---- */
     #rankingModal .modal-box {
-      max-width: 600px;
-      text-align: center;
+      max-width: 680px;
     }
 
     #rankingContent {
-      font-size: 18px;
-      margin-bottom: 30px;
+      font-size: 16px;
+      margin-bottom: 20px;
     }
 
   </style>
@@ -140,9 +190,29 @@
 <body>
 
   <!-- =====================================================
-       ESCENARIO PRINCIPAL
+       ESCENARIO PRINCIPAL (aventuras lineales)
   ===================================================== -->
   <div class="stage" id="stage"></div>
+
+
+  <!-- =====================================================
+       MAPA DE AVENTURAS (viñeta 1.5)
+  ===================================================== -->
+  <div id="mapScene">
+    <div class="map-wrapper">
+      <img src="./BASE/1.5.jpg" alt="Mapa de aventuras">
+
+      <div class="map-hotspot racks"     title="RACKS"     onclick="selectAdventure('RACKS')"></div>
+      <div class="map-hotspot sensible"  title="SENSIBLE"  onclick="selectAdventure('SENSIBLE')"></div>
+      <div class="map-hotspot minirack"  title="MINIRACK"  onclick="selectAdventure('MINIRACK')"></div>
+      <div class="map-hotspot ecommerce" title="ECOMMERCE" onclick="selectAdventure('ECOMMERCE')"></div>
+    </div>
+
+    <div class="map-footer">
+      <button class="btn back"  onclick="changeRoster()">CAMBIAR EQUIPOS</button>
+      <button class="btn final" onclick="showRanking()">VER PUNTUACIÓN GLOBAL</button>
+    </div>
+  </div>
 
 
   <!-- =====================================================
@@ -196,7 +266,7 @@
 
       <div class="modal-footer">
         <button class="btn back" onclick="closeRegisterModal()">CERRAR</button>
-        <button class="btn next" onclick="saveTeams()">CONTINUAR</button>
+        <button class="btn next" onclick="saveTeams()">COMENZAR</button>
       </div>
 
     </div>
@@ -213,7 +283,10 @@
 
       <div id="rankingContent"></div>
 
-      <button id="closeRankingBtn" class="btn final">FINALIZAR Y VOLVER AL INICIO</button>
+      <div class="modal-footer">
+        <button class="btn back" onclick="document.getElementById('rankingModal').style.display='none'">CERRAR</button>
+        <button id="closeRankingBtn" class="btn final">FINALIZAR Y VOLVER AL INICIO</button>
+      </div>
 
     </div>
   </div>
@@ -228,7 +301,7 @@
       <!-- Imagen -->
       <div style="flex:1; display:flex; justify-content:center; align-items:center;">
         <div style="background:#0f1720; padding:20px; border-radius:20px; box-shadow:0 0 25px rgba(0,0,0,0.6);">
-          <img src="/RAVI_PLAY2/BASE/R1.jpg" style="width:340px; border-radius:18px;"> style="width:340px; border-radius:18px; display:block;">
+          <img src="./BASE/R1.jpg" style="width:340px; border-radius:18px; display:block;">
         </div>
       </div>
 
@@ -248,38 +321,133 @@
   <script>
 
     /* =====================================================
+       STORE GLOBAL DE APLICACIÓN
+    ===================================================== */
+
+    let appState = {
+      currentSession: null,
+      currentRun:     null
+    };
+
+
+    /* =====================================================
+       FÁBRICA DE OBJETOS
+    ===================================================== */
+
+    function createSession(teamAPlayers, teamBPlayers) {
+      return {
+        sessionId:      crypto.randomUUID(),
+        createdAt:      new Date().toISOString(),
+        startAtSession: new Date().toISOString(),
+        endAtSession:   null,
+
+        teams: {
+          A: teamAPlayers.map(name => ({
+            playerId:    crypto.randomUUID(),
+            name,
+            totalPoints: 0
+          })),
+          B: teamBPlayers.map(name => ({
+            playerId:    crypto.randomUUID(),
+            name,
+            totalPoints: 0
+          }))
+        },
+
+        runs:   [],
+        totals: { A: 0, B: 0 }
+      };
+    }
+
+    function createRun(adventureKey) {
+      return {
+        runId:        crypto.randomUUID(),
+        sessionId:    appState.currentSession.sessionId,
+        adventureKey,
+        startAtRun:   new Date().toISOString(),
+        endAtRun:     null,
+        status:       "in_progress",
+        teamScore:    { A: 0, B: 0 },
+        playerScore:  {},
+        answers:      []
+      };
+    }
+
+
+    /* =====================================================
        PARTE 1 — MOTOR DE ESCENAS
     ===================================================== */
 
-    const scenes = [
-      { id:1,  type:"INITIAL",   bg:"./BASE/1.jpg"  },
-      { id:2,  type:"NARRATIVE", bg:"./BASE/2.jpg"  },
-      { id:3,  type:"NARRATIVE", bg:"./BASE/3.jpg"  },
-      { id:4,  type:"NARRATIVE", bg:"./BASE/4.jpg"  },
-      { id:5,  type:"QUESTION",  bg:"./BASE/5.jpg"  },
-      { id:6,  type:"QUESTION",  bg:"./BASE/6.jpg"  },
-      { id:7,  type:"QUESTION",  bg:"./BASE/7.jpg"  },
-      { id:8,  type:"QUESTION",  bg:"./BASE/8.jpg"  },
-      { id:9,  type:"NARRATIVE", bg:"./BASE/9.jpg"  },
-      { id:10, type:"NARRATIVE", bg:"./BASE/10.jpg" },
-      { id:11, type:"FINAL",     bg:"./BASE/11.jpg" }
-    ];
-
-    let gameState = {
-      currentScene: 1,
-      teamA: { players: [], score: 0 },
-      teamB: { players: [], score: 0 },
-      answers: []
+    // Escenas por aventura — reemplazar bg por los assets propios de cada una cuando estén listos
+    const adventures = {
+      RACKS: [
+        { id:1,  type:"INITIAL",   bg:"./BASE/1.jpg"  },
+        { id:2,  type:"NARRATIVE", bg:"./BASE/2.jpg"  },
+        { id:3,  type:"NARRATIVE", bg:"./BASE/3.jpg"  },
+        { id:4,  type:"NARRATIVE", bg:"./BASE/4.jpg"  },
+        { id:5,  type:"QUESTION",  bg:"./BASE/5.jpg"  },
+        { id:6,  type:"QUESTION",  bg:"./BASE/6.jpg"  },
+        { id:7,  type:"QUESTION",  bg:"./BASE/7.jpg"  },
+        { id:8,  type:"QUESTION",  bg:"./BASE/8.jpg"  },
+        { id:9,  type:"NARRATIVE", bg:"./BASE/9.jpg"  },
+        { id:10, type:"NARRATIVE", bg:"./BASE/10.jpg" },
+        { id:11, type:"FINAL",     bg:"./BASE/11.jpg" }
+      ],
+      SENSIBLE: [
+        { id:1,  type:"INITIAL",   bg:"./BASE/1.jpg"  },
+        { id:2,  type:"NARRATIVE", bg:"./BASE/2.jpg"  },
+        { id:3,  type:"NARRATIVE", bg:"./BASE/3.jpg"  },
+        { id:4,  type:"NARRATIVE", bg:"./BASE/4.jpg"  },
+        { id:5,  type:"QUESTION",  bg:"./BASE/5.jpg"  },
+        { id:6,  type:"QUESTION",  bg:"./BASE/6.jpg"  },
+        { id:7,  type:"QUESTION",  bg:"./BASE/7.jpg"  },
+        { id:8,  type:"QUESTION",  bg:"./BASE/8.jpg"  },
+        { id:9,  type:"NARRATIVE", bg:"./BASE/9.jpg"  },
+        { id:10, type:"NARRATIVE", bg:"./BASE/10.jpg" },
+        { id:11, type:"FINAL",     bg:"./BASE/11.jpg" }
+      ],
+      MINIRACK: [
+        { id:1,  type:"INITIAL",   bg:"./BASE/1.jpg"  },
+        { id:2,  type:"NARRATIVE", bg:"./BASE/2.jpg"  },
+        { id:3,  type:"NARRATIVE", bg:"./BASE/3.jpg"  },
+        { id:4,  type:"NARRATIVE", bg:"./BASE/4.jpg"  },
+        { id:5,  type:"QUESTION",  bg:"./BASE/5.jpg"  },
+        { id:6,  type:"QUESTION",  bg:"./BASE/6.jpg"  },
+        { id:7,  type:"QUESTION",  bg:"./BASE/7.jpg"  },
+        { id:8,  type:"QUESTION",  bg:"./BASE/8.jpg"  },
+        { id:9,  type:"NARRATIVE", bg:"./BASE/9.jpg"  },
+        { id:10, type:"NARRATIVE", bg:"./BASE/10.jpg" },
+        { id:11, type:"FINAL",     bg:"./BASE/11.jpg" }
+      ],
+      ECOMMERCE: [
+        { id:1,  type:"INITIAL",   bg:"./BASE/1.jpg"  },
+        { id:2,  type:"NARRATIVE", bg:"./BASE/2.jpg"  },
+        { id:3,  type:"NARRATIVE", bg:"./BASE/3.jpg"  },
+        { id:4,  type:"NARRATIVE", bg:"./BASE/4.jpg"  },
+        { id:5,  type:"QUESTION",  bg:"./BASE/5.jpg"  },
+        { id:6,  type:"QUESTION",  bg:"./BASE/6.jpg"  },
+        { id:7,  type:"QUESTION",  bg:"./BASE/7.jpg"  },
+        { id:8,  type:"QUESTION",  bg:"./BASE/8.jpg"  },
+        { id:9,  type:"NARRATIVE", bg:"./BASE/9.jpg"  },
+        { id:10, type:"NARRATIVE", bg:"./BASE/10.jpg" },
+        { id:11, type:"FINAL",     bg:"./BASE/11.jpg" }
+      ]
     };
 
+    let currentSceneId = 1;
     const stage = document.getElementById("stage");
 
-    // Declarado con let para poder ser sobreescrito por el wrapper de fade más abajo
+    function getCurrentScenes() {
+      const key = appState.currentRun ? appState.currentRun.adventureKey : "RACKS";
+      return adventures[key];
+    }
+
+    // Declarado con let para poder ser sobreescrito por el wrapper de fade
     let renderScene = function(id) {
-      const scene = scenes.find(s => s.id === id);
+      const scene = getCurrentScenes().find(s => s.id === id);
       if (!scene) return;
 
-      gameState.currentScene = id;
+      currentSceneId = id;
 
       stage.style.backgroundImage = `
         linear-gradient(
@@ -300,6 +468,66 @@
 
 
     /* =====================================================
+       FLUJO DE SESIÓN Y AVENTURAS
+    ===================================================== */
+
+    function startSession(teamANames, teamBNames) {
+      appState.currentSession = createSession(teamANames, teamBNames);
+      console.log("Sesión creada:", appState.currentSession.sessionId);
+      goToMap();
+    }
+
+    function selectAdventure(key) {
+      if (!appState.currentSession) {
+        openRegisterModal();
+        return;
+      }
+      appState.currentRun = createRun(key);
+      console.log("Run iniciado:", appState.currentRun.runId, "| Aventura:", key);
+      goToAdventure();
+    }
+
+    function goToAdventure() {
+      document.getElementById("mapScene").classList.remove("active");
+      stage.style.display = "flex";
+      renderScene(1);
+    }
+
+    function goToMap() {
+      stage.style.display = "none";
+      document.getElementById("mapScene").classList.add("active");
+    }
+
+    function finalizeRun() {
+      const run    = appState.currentRun;
+      run.status   = "finished";
+      run.endAtRun = new Date().toISOString();
+
+      appState.currentSession.runs.push(run);
+      appState.currentRun = null;
+
+      console.log("Run finalizado. Runs totales:", appState.currentSession.runs.length);
+      goToMap();
+    }
+
+    function changeRoster() {
+      if (appState.currentSession) {
+        appState.currentSession.endAtSession = new Date().toISOString();
+      }
+      appState.currentSession = null;
+      appState.currentRun     = null;
+
+      // Limpiar inputs del formulario
+      document.querySelectorAll(".regA, .regB").forEach(i => i.value = "");
+
+      document.getElementById("mapScene").classList.remove("active");
+      stage.style.display = "flex";
+      openRegisterModal();
+      renderScene(1);
+    }
+
+
+    /* =====================================================
        LÓGICA — REGISTRO DE EQUIPOS
     ===================================================== */
 
@@ -312,32 +540,32 @@
     }
 
     function saveTeams() {
-      gameState.teamA.players = [];
-      gameState.teamB.players = [];
+      const teamANames = [];
+      const teamBNames = [];
 
       document.querySelectorAll(".regA").forEach(input => {
-        if (input.value.trim() !== "") gameState.teamA.players.push(input.value.trim());
+        if (input.value.trim() !== "") teamANames.push(input.value.trim());
       });
-
       document.querySelectorAll(".regB").forEach(input => {
-        if (input.value.trim() !== "") gameState.teamB.players.push(input.value.trim());
+        if (input.value.trim() !== "") teamBNames.push(input.value.trim());
       });
 
-      console.log("Equipo A:", gameState.teamA.players);
-      console.log("Equipo B:", gameState.teamB.players);
+      console.log("Equipo A:", teamANames);
+      console.log("Equipo B:", teamBNames);
 
       closeRegisterModal();
-      renderScene(2);
+      startSession(teamANames, teamBNames);
     }
 
 
     /* =====================================================
-       PARTE 2 — CONFIGURACIÓN DE LAS 4 PREGUNTAS
+       PARTE 2 — PREGUNTAS (clave: aventura + sceneId)
     ===================================================== */
 
     const questions = {
 
-      5: {
+      "RACKS-5": {
+        questionId: "RACKS-5",
         text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
         options: [
           { id:"A", text:"Corregirle en el momento para evitar daño al producto.",                        points: 10 },
@@ -346,8 +574,8 @@
           { id:"D", text:"Dejar que el supervisor lo maneje luego.",                                      points:  5 }
         ]
       },
-
-      6: {
+      "RACKS-6": {
+        questionId: "RACKS-6",
         text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
         options: [
           { id:"A", text:"Reordenar el pallet afectado para continuar operación.",   points: 10 },
@@ -356,8 +584,8 @@
           { id:"D", text:"Mover temporalmente a otro pasillo para liberar flujo.",   points:  5 }
         ]
       },
-
-      7: {
+      "RACKS-7": {
+        questionId: "RACKS-7",
         text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
         options: [
           { id:"A", text:"Mover un pallet para liberar puerta.",                     points: 10 },
@@ -366,8 +594,134 @@
           { id:"D", text:"Tomar foto y continuar con inventario.",                   points:  5 }
         ]
       },
+      "RACKS-8": {
+        questionId: "RACKS-8",
+        text: "¿Qué MOVIMIENTOS SE PUEDEN RASTREAR EN EL SISTEMA WMS QUE PUEDEN GENERAR UN DESCUADRE EN PMM?",
+        options: [
+          { id:"A", text:"Revisar la cantidad de cajas picadas en el pasillo.", points: 10 },
+          { id:"B", text:"Mercadería paletizada con PL0 cuando debió ser PL1.", points: 15 },
+          { id:"C", text:"Revisar ajustes de códigos prepack en la 204.",        points: 20 },
+          { id:"D", text:"Revisar si faltan cursos en ingenio.",                 points:  0 }
+        ]
+      },
 
-      8: {
+      // SENSIBLE — reemplazar por preguntas propias cuando estén listas
+      "SENSIBLE-5": {
+        questionId: "SENSIBLE-5",
+        text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
+        options: [
+          { id:"A", text:"Corregirle en el momento para evitar daño al producto.",                        points: 10 },
+          { id:"B", text:"Corregirle y explicarle brevemente el significado del pictograma.",             points: 15 },
+          { id:"C", text:"Corregir, explicarle y reforzar el estándar en la reunión de inicio de turno.", points: 20 },
+          { id:"D", text:"Dejar que el supervisor lo maneje luego.",                                      points:  5 }
+        ]
+      },
+      "SENSIBLE-6": {
+        questionId: "SENSIBLE-6",
+        text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
+        options: [
+          { id:"A", text:"Reordenar el pallet afectado para continuar operación.",   points: 10 },
+          { id:"B", text:"Tomar foto y reportar desorden al supervisor.",             points: 15 },
+          { id:"C", text:"Tomar foto, reportar incidencia y explicar al compañero.", points: 20 },
+          { id:"D", text:"Mover temporalmente a otro pasillo para liberar flujo.",   points:  5 }
+        ]
+      },
+      "SENSIBLE-7": {
+        questionId: "SENSIBLE-7",
+        text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
+        options: [
+          { id:"A", text:"Mover un pallet para liberar puerta.",                     points: 10 },
+          { id:"B", text:"Llamar a los chicos del pasillo para mover pallets.",       points: 15 },
+          { id:"C", text:"Tomar foto, reportar incidencia y explicar al compañero.", points: 20 },
+          { id:"D", text:"Tomar foto y continuar con inventario.",                   points:  5 }
+        ]
+      },
+      "SENSIBLE-8": {
+        questionId: "SENSIBLE-8",
+        text: "¿Qué MOVIMIENTOS SE PUEDEN RASTREAR EN EL SISTEMA WMS QUE PUEDEN GENERAR UN DESCUADRE EN PMM?",
+        options: [
+          { id:"A", text:"Revisar la cantidad de cajas picadas en el pasillo.", points: 10 },
+          { id:"B", text:"Mercadería paletizada con PL0 cuando debió ser PL1.", points: 15 },
+          { id:"C", text:"Revisar ajustes de códigos prepack en la 204.",        points: 20 },
+          { id:"D", text:"Revisar si faltan cursos en ingenio.",                 points:  0 }
+        ]
+      },
+
+      // MINIRACK — reemplazar por preguntas propias cuando estén listas
+      "MINIRACK-5": {
+        questionId: "MINIRACK-5",
+        text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
+        options: [
+          { id:"A", text:"Corregirle en el momento para evitar daño al producto.",                        points: 10 },
+          { id:"B", text:"Corregirle y explicarle brevemente el significado del pictograma.",             points: 15 },
+          { id:"C", text:"Corregir, explicarle y reforzar el estándar en la reunión de inicio de turno.", points: 20 },
+          { id:"D", text:"Dejar que el supervisor lo maneje luego.",                                      points:  5 }
+        ]
+      },
+      "MINIRACK-6": {
+        questionId: "MINIRACK-6",
+        text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
+        options: [
+          { id:"A", text:"Reordenar el pallet afectado para continuar operación.",   points: 10 },
+          { id:"B", text:"Tomar foto y reportar desorden al supervisor.",             points: 15 },
+          { id:"C", text:"Tomar foto, reportar incidencia y explicar al compañero.", points: 20 },
+          { id:"D", text:"Mover temporalmente a otro pasillo para liberar flujo.",   points:  5 }
+        ]
+      },
+      "MINIRACK-7": {
+        questionId: "MINIRACK-7",
+        text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
+        options: [
+          { id:"A", text:"Mover un pallet para liberar puerta.",                     points: 10 },
+          { id:"B", text:"Llamar a los chicos del pasillo para mover pallets.",       points: 15 },
+          { id:"C", text:"Tomar foto, reportar incidencia y explicar al compañero.", points: 20 },
+          { id:"D", text:"Tomar foto y continuar con inventario.",                   points:  5 }
+        ]
+      },
+      "MINIRACK-8": {
+        questionId: "MINIRACK-8",
+        text: "¿Qué MOVIMIENTOS SE PUEDEN RASTREAR EN EL SISTEMA WMS QUE PUEDEN GENERAR UN DESCUADRE EN PMM?",
+        options: [
+          { id:"A", text:"Revisar la cantidad de cajas picadas en el pasillo.", points: 10 },
+          { id:"B", text:"Mercadería paletizada con PL0 cuando debió ser PL1.", points: 15 },
+          { id:"C", text:"Revisar ajustes de códigos prepack en la 204.",        points: 20 },
+          { id:"D", text:"Revisar si faltan cursos en ingenio.",                 points:  0 }
+        ]
+      },
+
+      // ECOMMERCE — reemplazar por preguntas propias cuando estén listas
+      "ECOMMERCE-5": {
+        questionId: "ECOMMERCE-5",
+        text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
+        options: [
+          { id:"A", text:"Corregirle en el momento para evitar daño al producto.",                        points: 10 },
+          { id:"B", text:"Corregirle y explicarle brevemente el significado del pictograma.",             points: 15 },
+          { id:"C", text:"Corregir, explicarle y reforzar el estándar en la reunión de inicio de turno.", points: 20 },
+          { id:"D", text:"Dejar que el supervisor lo maneje luego.",                                      points:  5 }
+        ]
+      },
+      "ECOMMERCE-6": {
+        questionId: "ECOMMERCE-6",
+        text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
+        options: [
+          { id:"A", text:"Reordenar el pallet afectado para continuar operación.",   points: 10 },
+          { id:"B", text:"Tomar foto y reportar desorden al supervisor.",             points: 15 },
+          { id:"C", text:"Tomar foto, reportar incidencia y explicar al compañero.", points: 20 },
+          { id:"D", text:"Mover temporalmente a otro pasillo para liberar flujo.",   points:  5 }
+        ]
+      },
+      "ECOMMERCE-7": {
+        questionId: "ECOMMERCE-7",
+        text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
+        options: [
+          { id:"A", text:"Mover un pallet para liberar puerta.",                     points: 10 },
+          { id:"B", text:"Llamar a los chicos del pasillo para mover pallets.",       points: 15 },
+          { id:"C", text:"Tomar foto, reportar incidencia y explicar al compañero.", points: 20 },
+          { id:"D", text:"Tomar foto y continuar con inventario.",                   points:  5 }
+        ]
+      },
+      "ECOMMERCE-8": {
+        questionId: "ECOMMERCE-8",
         text: "¿Qué MOVIMIENTOS SE PUEDEN RASTREAR EN EL SISTEMA WMS QUE PUEDEN GENERAR UN DESCUADRE EN PMM?",
         options: [
           { id:"A", text:"Revisar la cantidad de cajas picadas en el pasillo.", points: 10 },
@@ -379,14 +733,21 @@
 
     };
 
+    // Obtiene la pregunta activa según aventura + sceneId
+    function getCurrentQuestion() {
+      const key = appState.currentRun ? appState.currentRun.adventureKey : null;
+      if (!key) return null;
+      return questions[`${key}-${currentSceneId}`] || null;
+    }
+
 
     /* =====================================================
-       PARTE 3 — SISTEMA DE PUNTAJES
+       PARTE 3 — REGISTRO DE RESPUESTA (modelo appState)
     ===================================================== */
 
-    // Declarado con let para poder ser sobreescrito por el wrapper de resultado más abajo
+    // Declarado con let para poder ser sobreescrito por el wrapper de resultado
     let registerAnswer = function() {
-      const question = questions[gameState.currentScene];
+      const question = getCurrentQuestion();
       if (!question) {
         closeQuestionModal();
         return;
@@ -407,49 +768,96 @@
       const pointsA = optionA ? optionA.points : 0;
       const pointsB = optionB ? optionB.points : 0;
 
-      gameState.teamA.score += pointsA;
-      gameState.teamB.score += pointsB;
+      const bestOption = question.options.reduce((max, cur) =>
+        cur.points > max.points ? cur : max
+      );
 
-      gameState.answers.push({
-        scene: gameState.currentScene,
-        teamA: { option: selectedA.value, points: pointsA },
-        teamB: { option: selectedB.value, points: pointsB }
-      });
+      // Construir evento de respuesta
+      const answerEvent = {
+        runId:      appState.currentRun.runId,
+        timestamp:  new Date().toISOString(),
+        questionId: question.questionId,
+        sceneId:    currentSceneId,
+        selected:   { A: selectedA.value, B: selectedB.value },
+        points:     { A: pointsA, B: pointsB },
+        bestOption: bestOption.id,
+        meta: { adventureKey: appState.currentRun.adventureKey }
+      };
 
-      console.log("Respuesta registrada:", gameState.answers);
+      // Registrar en el run activo
+      appState.currentRun.answers.push(answerEvent);
+      appState.currentRun.teamScore.A += pointsA;
+      appState.currentRun.teamScore.B += pointsB;
+
+      // Actualizar puntaje por jugador y totales acumulados de sesión
+      appState.currentSession.teams.A.forEach(p => { p.totalPoints += pointsA; });
+      appState.currentSession.teams.B.forEach(p => { p.totalPoints += pointsB; });
+      appState.currentSession.totals.A += pointsA;
+      appState.currentSession.totals.B += pointsB;
+
+      console.log("Respuesta registrada:", answerEvent);
+      console.log("Totales sesión → A:", appState.currentSession.totals.A, "| B:", appState.currentSession.totals.B);
 
       closeQuestionModal();
     };
 
 
     /* =====================================================
-       PARTE 4 — RANKING FINAL
+       PARTE 4 — RANKING FINAL (acumulado de sesión)
     ===================================================== */
 
     function showRanking() {
-      const scoreA = gameState.teamA.score;
-      const scoreB = gameState.teamB.score;
+      const session = appState.currentSession;
+      if (!session) {
+        alert("No hay sesión activa.");
+        return;
+      }
 
-      let resultText = `
-        <p><strong>Equipo A:</strong> ${scoreA} pts</p>
-        <p><strong>Equipo B:</strong> ${scoreB} pts</p>
-        <hr style="margin:20px 0;">
+      const totA = session.totals.A;
+      const totB = session.totals.B;
+
+      let runsHTML = "";
+      session.runs.forEach(run => {
+        runsHTML += `
+          <p style="margin:6px 0;">
+            <strong>${run.adventureKey}:</strong>
+            Equipo A ${run.teamScore.A} pts — Equipo B ${run.teamScore.B} pts
+          </p>`;
+      });
+
+      const playersA = session.teams.A.map(p => `${p.name}: ${p.totalPoints} pts`).join(" | ") || "—";
+      const playersB = session.teams.B.map(p => `${p.name}: ${p.totalPoints} pts`).join(" | ") || "—";
+
+      let winner = "";
+      if      (totA > totB) winner = `<h3 style="color:#00d084;">🥇 GANADOR: EQUIPO A</h3>`;
+      else if (totB > totA) winner = `<h3 style="color:#00d084;">🥇 GANADOR: EQUIPO B</h3>`;
+      else                  winner = `<h3>🤝 EMPATE</h3>`;
+
+      document.getElementById("rankingContent").innerHTML = `
+        <p><strong>Aventuras jugadas:</strong> ${session.runs.length}</p>
+        ${runsHTML}
+        <hr style="margin:16px 0; border-color:#444;">
+        <p><strong>TOTAL Equipo A:</strong> ${totA} pts</p>
+        <p style="font-size:13px; color:#aaa;">${playersA}</p>
+        <p><strong>TOTAL Equipo B:</strong> ${totB} pts</p>
+        <p style="font-size:13px; color:#aaa;">${playersB}</p>
+        <hr style="margin:16px 0; border-color:#444;">
+        ${winner}
       `;
 
-      if      (scoreA > scoreB) resultText += `<h3>🥇 GANADOR: EQUIPO A</h3>`;
-      else if (scoreB > scoreA) resultText += `<h3>🥇 GANADOR: EQUIPO B</h3>`;
-      else                      resultText += `<h3>🤝 EMPATE</h3>`;
-
-      document.getElementById("rankingContent").innerHTML = resultText;
       document.getElementById("rankingModal").style.display = "flex";
     }
 
     document.getElementById("closeRankingBtn").addEventListener("click", function () {
-      gameState.teamA.score = 0;
-      gameState.teamB.score = 0;
-      gameState.answers     = [];
+      if (appState.currentSession) {
+        appState.currentSession.endAtSession = new Date().toISOString();
+      }
+      appState.currentSession = null;
+      appState.currentRun     = null;
 
       document.getElementById("rankingModal").style.display = "none";
+      document.getElementById("mapScene").classList.remove("active");
+      stage.style.display = "flex";
       renderScene(1);
     });
 
@@ -472,18 +880,19 @@
     }
 
     function renderNarrative() {
-      stage.appendChild(createButton("ATRÁS",     "back", () => renderScene(gameState.currentScene - 1)));
-      stage.appendChild(createButton("SIGUIENTE", "next", () => renderScene(gameState.currentScene + 1)));
+      stage.appendChild(createButton("ATRÁS",     "back", () => renderScene(currentSceneId - 1)));
+      stage.appendChild(createButton("SIGUIENTE", "next", () => renderScene(currentSceneId + 1)));
     }
 
     function renderQuestion() {
-      stage.appendChild(createButton("ATRÁS",     "back",   () => renderScene(gameState.currentScene - 1)));
+      stage.appendChild(createButton("ATRÁS",     "back",   () => renderScene(currentSceneId - 1)));
       stage.appendChild(createButton("RESPONDER", "action", openQuestionModal));
-      stage.appendChild(createButton("SIGUIENTE", "next",   () => renderScene(gameState.currentScene + 1)));
+      stage.appendChild(createButton("SIGUIENTE", "next",   () => renderScene(currentSceneId + 1)));
     }
 
     function renderFinal() {
-      stage.appendChild(createButton("VER PUNTUACIÓN", "final", showRanking));
+      stage.appendChild(createButton("VER RESULTADO",     "action", showRanking));
+      stage.appendChild(createButton("FINALIZAR AVENTURA","final",  finalizeRun));
     }
 
 
@@ -492,7 +901,7 @@
     ===================================================== */
 
     function openQuestionModal() {
-      const question = questions[gameState.currentScene];
+      const question = getCurrentQuestion();
       if (!question) return;
 
       document.getElementById("questionTitle").textContent = question.text;
@@ -526,59 +935,61 @@
 
 
     /* =====================================================
-       SISTEMA: MODAL RESULTADO CON IMAGEN RAVI
-       (hook sobre registerAnswer — no modifica lógica base)
+       MODAL RESULTADO CON IMAGEN RAVI
+       (wrapper sobre registerAnswer)
     ===================================================== */
 
     function showResultAfterRegister() {
-      const lastAnswer = gameState.answers[gameState.answers.length - 1];
-      if (!lastAnswer) return;
+      const run = appState.currentRun;
+      if (!run || run.answers.length === 0) return;
 
-      const question   = questions[lastAnswer.scene];
-      const optionA    = question.options.find(o => o.id === lastAnswer.teamA.option);
-      const optionB    = question.options.find(o => o.id === lastAnswer.teamB.option);
-      const bestOption = question.options.reduce((max, current) =>
-        current.points > max.points ? current : max
-      );
+      const lastAnswer = run.answers[run.answers.length - 1];
+      const question   = questions[lastAnswer.questionId];
+      if (!question) return;
+
+      const optionA    = question.options.find(o => o.id === lastAnswer.selected.A);
+      const optionB    = question.options.find(o => o.id === lastAnswer.selected.B);
+      const bestOption = question.options.find(o => o.id === lastAnswer.bestOption);
 
       const content = `
         <p><strong>Equipo A respondió:</strong> ${optionA.id}) ${optionA.text}
-           <span style="color:#00d084;"> +${lastAnswer.teamA.points} pts</span></p>
+           <span style="color:#00d084;"> +${lastAnswer.points.A} pts</span></p>
         <p><strong>Equipo B respondió:</strong> ${optionB.id}) ${optionB.text}
-           <span style="color:#00d084;"> +${lastAnswer.teamB.points} pts</span></p>
+           <span style="color:#00d084;"> +${lastAnswer.points.B} pts</span></p>
         <hr style="margin:20px 0; border-color:#444;">
         <p><strong>🏆 Mejor respuesta:</strong>
            ${bestOption.id}) ${bestOption.text}
            <span style="color:#ffd700;"> +${bestOption.points} pts</span></p>
         <hr style="margin:20px 0; border-color:#444;">
-        <p><strong>Marcador actual:</strong></p>
-        <p>Equipo A: ${gameState.teamA.score} pts</p>
-        <p>Equipo B: ${gameState.teamB.score} pts</p>
+        <p><strong>Marcador esta aventura:</strong>
+           A: ${run.teamScore.A} pts &nbsp;|&nbsp; B: ${run.teamScore.B} pts</p>
+        <p><strong>Marcador acumulado (sesión):</strong>
+           A: ${appState.currentSession.totals.A} pts &nbsp;|&nbsp; B: ${appState.currentSession.totals.B} pts</p>
       `;
 
       document.getElementById("resultDynamicContent").innerHTML = content;
       document.getElementById("resultModal").style.display = "flex";
     }
 
-    // Wrapper: ejecuta la lógica base y luego muestra el resultado si se registró
     const _baseRegisterAnswer = registerAnswer;
     registerAnswer = function() {
-      const prevCount = gameState.answers.length;
+      const prevCount = appState.currentRun ? appState.currentRun.answers.length : 0;
       _baseRegisterAnswer();
-      if (gameState.answers.length > prevCount) {
+      const newCount  = appState.currentRun ? appState.currentRun.answers.length : 0;
+      if (newCount > prevCount) {
         setTimeout(showResultAfterRegister, 200);
       }
     };
 
     document.getElementById("continueAfterResultBtn").addEventListener("click", function () {
       document.getElementById("resultModal").style.display = "none";
-      renderScene(gameState.currentScene + 1);
+      renderScene(currentSceneId + 1);
     });
 
 
     /* =====================================================
        TRANSICIÓN DE ESCENAS CON FADE SUAVE
-       (wrapper sobre renderScene — no modifica lógica base)
+       (wrapper sobre renderScene)
     ===================================================== */
 
     const _baseRenderScene = renderScene;
@@ -605,5 +1016,3 @@
 
 </body>
 </html>
-
-
