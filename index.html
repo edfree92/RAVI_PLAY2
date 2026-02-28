@@ -39,7 +39,11 @@
       align-items: flex-end;
       padding: 40px;
       gap: 20px;
+      transition: opacity 0.6s ease;   /* fade suave */
     }
+
+    .stage.fade-out { opacity: 0; }
+    .stage.fade-in  { opacity: 1; }
 
     /* ---- Botones ---- */
     .btn {
@@ -215,6 +219,32 @@
   </div>
 
 
+  <!-- =====================================================
+       MODAL: RESULTADO DE PREGUNTA CON IMAGEN RAVI
+  ===================================================== -->
+  <div id="resultModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:950px; display:flex; gap:40px; align-items:center;">
+
+      <!-- Imagen -->
+      <div style="flex:1; display:flex; justify-content:center; align-items:center;">
+        <div style="background:#0f1720; padding:20px; border-radius:20px; box-shadow:0 0 25px rgba(0,0,0,0.6);">
+          <img src="R1.jpg" style="width:340px; border-radius:18px; display:block;">
+        </div>
+      </div>
+
+      <!-- Contenido resultado -->
+      <div style="flex:1.3;">
+        <h2 style="margin-top:0;">RESULTADO DE LA PREGUNTA</h2>
+        <div id="resultDynamicContent" style="font-size:16px; line-height:1.6;"></div>
+        <div style="margin-top:30px; text-align:center;">
+          <button id="continueAfterResultBtn" class="btn next">CONTINUAR</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
   <script>
 
     /* =====================================================
@@ -244,7 +274,8 @@
 
     const stage = document.getElementById("stage");
 
-    function renderScene(id) {
+    // Declarado con let para poder ser sobreescrito por el wrapper de fade más abajo
+    let renderScene = function(id) {
       const scene = scenes.find(s => s.id === id);
       if (!scene) return;
 
@@ -265,7 +296,7 @@
       if (scene.type === "NARRATIVE") renderNarrative();
       if (scene.type === "QUESTION")  renderQuestion();
       if (scene.type === "FINAL")     renderFinal();
-    }
+    };
 
 
     /* =====================================================
@@ -309,40 +340,40 @@
       5: {
         text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
         options: [
-          { id:"A", text:"Corregirle en el momento para evitar daño al producto.",                       points: 10 },
-          { id:"B", text:"Corregirle y explicarle brevemente el significado del pictograma.",            points: 15 },
+          { id:"A", text:"Corregirle en el momento para evitar daño al producto.",                        points: 10 },
+          { id:"B", text:"Corregirle y explicarle brevemente el significado del pictograma.",             points: 15 },
           { id:"C", text:"Corregir, explicarle y reforzar el estándar en la reunión de inicio de turno.", points: 20 },
-          { id:"D", text:"Dejar que el supervisor lo maneje luego.",                                     points:  5 }
+          { id:"D", text:"Dejar que el supervisor lo maneje luego.",                                      points:  5 }
         ]
       },
 
       6: {
         text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
         options: [
-          { id:"A", text:"Reordenar el pallet afectado para continuar operación.",              points: 10 },
-          { id:"B", text:"Tomar foto y reportar desorden al supervisor.",                       points: 15 },
-          { id:"C", text:"Tomar foto, reportar incidencia y explicar al compañero.",            points: 20 },
-          { id:"D", text:"Mover temporalmente a otro pasillo para liberar flujo.",              points:  5 }
+          { id:"A", text:"Reordenar el pallet afectado para continuar operación.",   points: 10 },
+          { id:"B", text:"Tomar foto y reportar desorden al supervisor.",             points: 15 },
+          { id:"C", text:"Tomar foto, reportar incidencia y explicar al compañero.", points: 20 },
+          { id:"D", text:"Mover temporalmente a otro pasillo para liberar flujo.",   points:  5 }
         ]
       },
 
       7: {
         text: "¿QUE ACCION REALIZAR ANTE ESTA SITUACION?",
         options: [
-          { id:"A", text:"Mover un pallet para liberar puerta.",                                points: 10 },
-          { id:"B", text:"Llamar a los chicos del pasillo para mover pallets.",                 points: 15 },
-          { id:"C", text:"Tomar foto, reportar incidencia y explicar al compañero.",            points: 20 },
-          { id:"D", text:"Tomar foto y continuar con inventario.",                              points:  5 }
+          { id:"A", text:"Mover un pallet para liberar puerta.",                     points: 10 },
+          { id:"B", text:"Llamar a los chicos del pasillo para mover pallets.",       points: 15 },
+          { id:"C", text:"Tomar foto, reportar incidencia y explicar al compañero.", points: 20 },
+          { id:"D", text:"Tomar foto y continuar con inventario.",                   points:  5 }
         ]
       },
 
       8: {
         text: "¿Qué MOVIMIENTOS SE PUEDEN RASTREAR EN EL SISTEMA WMS QUE PUEDEN GENERAR UN DESCUADRE EN PMM?",
         options: [
-          { id:"A", text:"Revisar la cantidad de cajas picadas en el pasillo.",                 points: 10 },
-          { id:"B", text:"Mercadería paletizada con PL0 cuando debió ser PL1.",                 points: 15 },
-          { id:"C", text:"Revisar ajustes de códigos prepack en la 204.",                       points: 20 },
-          { id:"D", text:"Revisar si faltan cursos en ingenio.",                                points:  0 }
+          { id:"A", text:"Revisar la cantidad de cajas picadas en el pasillo.", points: 10 },
+          { id:"B", text:"Mercadería paletizada con PL0 cuando debió ser PL1.", points: 15 },
+          { id:"C", text:"Revisar ajustes de códigos prepack en la 204.",        points: 20 },
+          { id:"D", text:"Revisar si faltan cursos en ingenio.",                 points:  0 }
         ]
       }
 
@@ -353,7 +384,8 @@
        PARTE 3 — SISTEMA DE PUNTAJES
     ===================================================== */
 
-    function registerAnswer() {
+    // Declarado con let para poder ser sobreescrito por el wrapper de resultado más abajo
+    let registerAnswer = function() {
       const question = questions[gameState.currentScene];
       if (!question) {
         closeQuestionModal();
@@ -387,7 +419,7 @@
       console.log("Respuesta registrada:", gameState.answers);
 
       closeQuestionModal();
-    }
+    };
 
 
     /* =====================================================
@@ -406,7 +438,7 @@
 
       if      (scoreA > scoreB) resultText += `<h3>🥇 GANADOR: EQUIPO A</h3>`;
       else if (scoreB > scoreA) resultText += `<h3>🥇 GANADOR: EQUIPO B</h3>`;
-      else                       resultText += `<h3>🤝 EMPATE</h3>`;
+      else                      resultText += `<h3>🤝 EMPATE</h3>`;
 
       document.getElementById("rankingContent").innerHTML = resultText;
       document.getElementById("rankingModal").style.display = "flex";
@@ -434,17 +466,11 @@
       return btn;
     }
 
-function renderInitial(){
+    function renderInitial() {
+      stage.appendChild(createButton("REGISTRO",  "action", openRegisterModal));
+      stage.appendChild(createButton("SIGUIENTE", "next",   () => renderScene(2)));
+    }
 
-  stage.appendChild(
-    createButton("REGISTRO","action",openRegisterModal)
-  );
-
-  stage.appendChild(
-    createButton("SIGUIENTE","next",()=>renderScene(2))
-  );
-
-}
     function renderNarrative() {
       stage.appendChild(createButton("ATRÁS",     "back", () => renderScene(gameState.currentScene - 1)));
       stage.appendChild(createButton("SIGUIENTE", "next", () => renderScene(gameState.currentScene + 1)));
@@ -495,8 +521,78 @@ function renderInitial(){
       document.getElementById("questionModal").style.display = "none";
     }
 
-    document.getElementById("registerAnswerBtn").addEventListener("click", registerAnswer);
+    document.getElementById("registerAnswerBtn").addEventListener("click", () => registerAnswer());
     document.getElementById("closeQuestionBtn").addEventListener("click",  closeQuestionModal);
+
+
+    /* =====================================================
+       SISTEMA: MODAL RESULTADO CON IMAGEN RAVI
+       (hook sobre registerAnswer — no modifica lógica base)
+    ===================================================== */
+
+    function showResultAfterRegister() {
+      const lastAnswer = gameState.answers[gameState.answers.length - 1];
+      if (!lastAnswer) return;
+
+      const question   = questions[lastAnswer.scene];
+      const optionA    = question.options.find(o => o.id === lastAnswer.teamA.option);
+      const optionB    = question.options.find(o => o.id === lastAnswer.teamB.option);
+      const bestOption = question.options.reduce((max, current) =>
+        current.points > max.points ? current : max
+      );
+
+      const content = `
+        <p><strong>Equipo A respondió:</strong> ${optionA.id}) ${optionA.text}
+           <span style="color:#00d084;"> +${lastAnswer.teamA.points} pts</span></p>
+        <p><strong>Equipo B respondió:</strong> ${optionB.id}) ${optionB.text}
+           <span style="color:#00d084;"> +${lastAnswer.teamB.points} pts</span></p>
+        <hr style="margin:20px 0; border-color:#444;">
+        <p><strong>🏆 Mejor respuesta:</strong>
+           ${bestOption.id}) ${bestOption.text}
+           <span style="color:#ffd700;"> +${bestOption.points} pts</span></p>
+        <hr style="margin:20px 0; border-color:#444;">
+        <p><strong>Marcador actual:</strong></p>
+        <p>Equipo A: ${gameState.teamA.score} pts</p>
+        <p>Equipo B: ${gameState.teamB.score} pts</p>
+      `;
+
+      document.getElementById("resultDynamicContent").innerHTML = content;
+      document.getElementById("resultModal").style.display = "flex";
+    }
+
+    // Wrapper: ejecuta la lógica base y luego muestra el resultado si se registró
+    const _baseRegisterAnswer = registerAnswer;
+    registerAnswer = function() {
+      const prevCount = gameState.answers.length;
+      _baseRegisterAnswer();
+      if (gameState.answers.length > prevCount) {
+        setTimeout(showResultAfterRegister, 200);
+      }
+    };
+
+    document.getElementById("continueAfterResultBtn").addEventListener("click", function () {
+      document.getElementById("resultModal").style.display = "none";
+      renderScene(gameState.currentScene + 1);
+    });
+
+
+    /* =====================================================
+       TRANSICIÓN DE ESCENAS CON FADE SUAVE
+       (wrapper sobre renderScene — no modifica lógica base)
+    ===================================================== */
+
+    const _baseRenderScene = renderScene;
+    renderScene = function(id) {
+      stage.classList.add("fade-out");
+      setTimeout(() => {
+        _baseRenderScene(id);
+        stage.classList.remove("fade-out");
+        stage.classList.add("fade-in");
+        setTimeout(() => {
+          stage.classList.remove("fade-in");
+        }, 600);
+      }, 400);
+    };
 
 
     /* =====================================================
@@ -509,4 +605,3 @@ function renderInitial(){
 
 </body>
 </html>
-
