@@ -44,6 +44,12 @@
       transition: opacity 0.6s ease;
     }
 
+    /* Modo mapa: el wrapper hijo gestiona su propio layout */
+    .stage.map-mode {
+      align-items: stretch;
+      padding: 0;
+    }
+
     .stage.fade-out { opacity: 0; }
     .stage.fade-in  { opacity: 1; }
 
@@ -403,6 +409,7 @@
       if (!scene) return;
 
       currentSceneId = id;
+      stage.classList.remove("map-mode");
 
       stage.style.backgroundImage = `
         linear-gradient(
@@ -434,27 +441,44 @@
       }
 
       stage.style.backgroundImage = `url("./BASE/1.5.jpg")`;
+      stage.classList.add("map-mode");
       stage.innerHTML = "";
 
-      // Contenedor con flex-wrap para que los 4 botones siempre sean visibles
-      const container = document.createElement("div");
-      container.style.display        = "flex";
-      container.style.flexWrap       = "wrap";
-      container.style.justifyContent = "center";
-      container.style.gap            = "20px";
-      container.style.width          = "100%";
-      container.style.marginBottom   = "40px";
+      // Wrapper que ocupa todo el stage y posiciona los botones al fondo
+      const wrapper = document.createElement("div");
+      wrapper.style.display        = "flex";
+      wrapper.style.flexDirection  = "column";
+      wrapper.style.alignItems     = "center";
+      wrapper.style.justifyContent = "flex-end";
+      wrapper.style.width          = "100%";
+      wrapper.style.height         = "100%";
+      wrapper.style.gap            = "16px";
+      wrapper.style.paddingBottom  = "40px";
 
-      // CORRECCIÓN 2 — solo RACKS activo; las demás muestran aviso
-      container.appendChild(createButton("RACKS",     "primary", () => startAdventure("RACKS")));
-      container.appendChild(createButton("SENSIBLE",  "primary", () => alert("Próximamente disponible")));
-      container.appendChild(createButton("MINIRACK",  "primary", () => alert("Próximamente disponible")));
-      container.appendChild(createButton("ECOMMERCE", "primary", () => alert("Próximamente disponible")));
+      // Fila 1 — 4 aventuras
+      const rowAdventures = document.createElement("div");
+      rowAdventures.style.display        = "flex";
+      rowAdventures.style.flexWrap       = "wrap";
+      rowAdventures.style.justifyContent = "center";
+      rowAdventures.style.gap            = "16px";
 
-      stage.appendChild(container);
+      rowAdventures.appendChild(createButton("RACKS",     "primary", () => startAdventure("RACKS")));
+      rowAdventures.appendChild(createButton("SENSIBLE",  "primary", () => alert("Próximamente disponible")));
+      rowAdventures.appendChild(createButton("MINIRACK",  "primary", () => alert("Próximamente disponible")));
+      rowAdventures.appendChild(createButton("ECOMMERCE", "primary", () => alert("Próximamente disponible")));
 
-      stage.appendChild(createButton("VER PUNTUACIÓN", "final",  showRanking));
-      stage.appendChild(createButton("CAMBIAR EQUIPOS","danger",  changeRoster));
+      // Fila 2 — acciones de sesión
+      const rowSession = document.createElement("div");
+      rowSession.style.display        = "flex";
+      rowSession.style.justifyContent = "center";
+      rowSession.style.gap            = "16px";
+
+      rowSession.appendChild(createButton("VER PUNTUACIÓN", "final",  showRanking));
+      rowSession.appendChild(createButton("CAMBIAR EQUIPOS","danger",  changeRoster));
+
+      wrapper.appendChild(rowAdventures);
+      wrapper.appendChild(rowSession);
+      stage.appendChild(wrapper);
     }
 
 
@@ -1061,3 +1085,4 @@
 
 </body>
 </html>
+
