@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>DINET - LOYAL FRIENDS 2</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+
+    /* ==========================================================
+       ESTILOS — DINET LOYAL FRIENDS 2
+    ========================================================== */
+
+    :root {
+      --btn-next:    #00d084;
+      --btn-back:    #6c757d;
+      --btn-action:  #ff9800;
+      --btn-final:   #2196f3;
+      --btn-danger:  #e53935;
+      --btn-primary: #7c4dff;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+      background: #0b0f14;
+    }
+
+    /* ── Escenario principal ── */
+    .stage {
+      height: 100vh;
+      width: 100vw;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      padding: 40px;
+      gap: 20px;
+      transition: opacity 0.6s ease;
+    }
+
+    .stage.map-mode {
+      align-items: stretch;
+      padding: 0;
+    }
+
+    .stage.fade-out { opacity: 0; }
+    .stage.fade-in  { opacity: 1; }
+
+    /* ── Botones ── */
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 16px;
+      color: white;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      opacity: 0.9;
+    }
+
+    .next    { background: var(--btn-next);    }
+    .back    { background: var(--btn-back);    }
+    .action  { background: var(--btn-action);  }
+    .final   { background: var(--btn-final);   }
+    .danger  { background: var(--btn-danger);  }
+    .primary { background: var(--btn-primary); }
+
+    /* ── Modales ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(5px);
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .modal-box {
+      background: #1c2430;
+      padding: 30px;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 800px;
+      color: white;
+    }
+
+    .modal-box h2 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    /* ── Opciones de preguntas ── */
+    .option-row {
+      margin-bottom: 12px;
+      padding: 12px 16px;
+      border: 1px solid #555;
+      border-radius: 8px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .option-row:hover {
+      border-color: #ff9800;
+      background: rgba(255,152,0,0.05);
+    }
+
+    .option-radios label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-right: 20px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    .option-radios input[type="radio"] {
+      accent-color: #ff9800;
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ── Inputs de registro ── */
+    .reg-input {
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      background: #0f1720;
+      color: white;
+      font-size: 14px;
+    }
+
+    .reg-input::placeholder { color: #888; }
+
+    /* ── Footer de modal ── */
+    .modal-footer {
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* ── Ranking ── */
+    #rankingModal .modal-box { max-width: 680px; }
+    #rankingContent { font-size: 16px; margin-bottom: 20px; }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- ══════════════════════════════════════════════════════
+       ESCENARIO PRINCIPAL
+       Todas las viñetas se renderizan aquí via render.js
+  ══════════════════════════════════════════════════════ -->
+  <div class="stage" id="stage"></div>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       MODAL: PREGUNTAS
+  ══════════════════════════════════════════════════════ -->
+  <div id="questionModal" class="modal-overlay">
+    <div class="modal-box">
+      <h2 id="questionTitle"></h2>
+      <div id="optionsContainer"></div>
+      <div class="modal-footer">
+        <button id="registerAnswerBtn" class="btn action">REGISTRAR RESPUESTA</button>
+        <button id="closeQuestionBtn"  class="btn back">CERRAR</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       MODAL: REGISTRO DE EQUIPOS
+  ══════════════════════════════════════════════════════ -->
+  <div id="registerModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:700px;">
+      <h2>REGISTRO DE EQUIPOS</h2>
+      <div style="display:flex; gap:20px; margin-top:20px;">
+        <div style="flex:1;">
+          <h3>GRUPO A</h3>
+          <input class="reg-input regA" placeholder="Nombre 1">
+          <input class="reg-input regA" placeholder="Nombre 2">
+          <input class="reg-input regA" placeholder="Nombre 3">
+          <input class="reg-input regA" placeholder="Nombre 4">
+          <input class="reg-input regA" placeholder="Nombre 5">
+        </div>
+        <div style="flex:1;">
+          <h3>GRUPO B</h3>
+          <input class="reg-input regB" placeholder="Nombre 1">
+          <input class="reg-input regB" placeholder="Nombre 2">
+          <input class="reg-input regB" placeholder="Nombre 3">
+          <input class="reg-input regB" placeholder="Nombre 4">
+          <input class="reg-input regB" placeholder="Nombre 5">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn back" onclick="closeRegisterModal()">CERRAR</button>
+        <button class="btn next" onclick="saveTeams()">COMENZAR</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       MODAL: RANKING FINAL
+  ══════════════════════════════════════════════════════ -->
+  <div id="rankingModal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>🏆 RESULTADOS FINALES</h2>
+      <div id="rankingContent"></div>
+      <div class="modal-footer">
+        <button class="btn back"
+          onclick="document.getElementById('rankingModal').style.display='none'">
+          CERRAR
+        </button>
+        <button id="closeRankingBtn" class="btn final">FINALIZAR Y VOLVER AL INICIO</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       MODAL: RESULTADO DE PREGUNTA
+  ══════════════════════════════════════════════════════ -->
+  <div id="resultModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:950px; display:flex; gap:40px; align-items:center;">
+
+      <div style="flex:1; display:flex; justify-content:center; align-items:center;">
+        <div style="background:#0f1720; padding:20px; border-radius:20px;
+                    box-shadow:0 0 25px rgba(0,0,0,0.6);">
+          <img src="./BASE/R1.jpg" style="width:340px; border-radius:18px; display:block;">
+        </div>
+      </div>
+
+      <div style="flex:1.3;">
+        <h2 style="margin-top:0;">RESULTADO DE LA PREGUNTA</h2>
+        <div id="resultDynamicContent" style="font-size:16px; line-height:1.6;"></div>
+        <div style="margin-top:30px; text-align:center;">
+          <button id="continueAfterResultBtn" class="btn next">CONTINUAR</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       SCRIPTS — orden de carga obligatorio:
+       1. config     → API_CONFIG
+       2. state      → appState
+       3. factory    → createSession, createRun, processAnswer, payloads
+       4. api        → sendToBackend y funciones de envío
+       5. adventures → window.ADVENTURE_DATA.X  (datos puros)
+       6. render     → SCENES, ADVENTURES, renderScene, navegación
+       7. modals     → handleRegisterAnswer, showRanking, startAdventure
+  ══════════════════════════════════════════════════════ -->
+
+  <!-- Core -->
+  <script src="./core/config.js"></script>
+  <script src="./core/state.js"></script>
+  <script src="./core/factory.js"></script>
+  <script src="./core/api.js"></script>
+
+  <!-- Aventuras — agregar una línea por aventura nueva -->
+  <script src="./adventures/racks.js"></script>
+  <script src="./adventures/sensible.js"></script>
+  <script src="./adventures/minirack.js"></script>
+  <script src="./adventures/ecommerce.js"></script>
+
+  <!-- UI -->
+  <script src="./ui/render.js"></script>
+  <script src="./ui/modals.js"></script>
+
+  <!-- Inicialización — corre después de que todos los scripts cargaron -->
+  <script>
+    const { SCENES, ADVENTURES } = buildSceneIndex();
+    renderScene(1);
+  </script>
+
+</body>
+</html>
