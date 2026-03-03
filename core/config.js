@@ -15,7 +15,7 @@ const API_CONFIG = {
 
   // ── URL del backend ───────────────────────────────────────
   // Reemplazar con la URL real de Google Apps Script Web App
-  ENDPOINT: "https://script.google.com/macros/s/TU_DEPLOYMENT_ID/exec",
+  ENDPOINT: "https://script.google.com/macros/s/AKfycbx-nfZfmxjRJnL842Q-_Ds9qsbeAtdY_bHLOkwc4fSZEQ-huGVh2nreB9eComK2znd-xQ/exec",
 
   // ── Estrategia de envío ───────────────────────────────────
   // "per_answer"  → una fila por respuesta  (recomendado Google Sheets)
